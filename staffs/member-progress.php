@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('trainer', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 include 'includes/authentication.php';
 
 
@@ -14,9 +16,9 @@ $sql = "SELECT members.*, services.service_name, progress.ini_weight, progress.c
 
 // Searching Users
 if (!empty($_POST)) {
-    $search = $_POST['search'];
+    $search = mysqli_real_escape_string($conn, trim($_POST['search'] ?? ''));
     if (!empty($search)) {
-        $sql .= " AND (CONCAT(members.fullname, services.service_name) LIKE '%$search%')";
+        $sql .= " AND (CONCAT_WS(' ', members.fullname, services.service_name, members.status) LIKE '%$search%')";
     }
 }
 
@@ -30,7 +32,7 @@ $sn = 1;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Trainer</title>
+    <title>Fitness Hub - Trainer</title>
     <link rel="stylesheet" href="css/member-progress.css">
     <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <script>
@@ -71,7 +73,8 @@ $sn = 1;
                     <th>Current Weight</th>
                     <th>Service</th>
                     <th>Progress</th>
-                    <th>Action</th>
+                    <th>Profile</th>
+                    <th>Progress</th>
                     <th>Upload Plan</th>
                 </tr>
             </thead>
@@ -79,10 +82,10 @@ $sn = 1;
                 <?php while ($row = mysqli_fetch_assoc($res)) { ?>
                     <tr>
                         <td><?= $sn++ ?></td>
-                        <td><?= $row['fullname'] ?></td>
+                        <td><?= fitness_escape($row['fullname']) ?></td>
                         <td><?= $row['ini_weight'] ?></td>
                         <td><?= $row['curr_weight'] ?></td>
-                        <td><?= $row['service_name'] ?></td>
+                        <td><?= fitness_escape($row['service_name']) ?></td>
                         <td><?php
                         if ($row['ini_weight'] < $row['curr_weight']) {
                             $diff = $row['curr_weight'] - $row['ini_weight'];
@@ -94,6 +97,7 @@ $sn = 1;
                             echo $progress;
                         }
                         ?></td>
+                        <td><a href="update-member.php?id=<?= $row['id'] ?>"><button class="update">Edit Profile</button></a></td>
                         <td><a href="member-progress-update.php?id=<?= $row['id'] ?>"><button class="update">Edit</button></a></td>
                         <td><a href="upload_plan.php?id=<?= $row['id'] ?>"><button class="upload">Upload</button></a></td>
                     </tr>

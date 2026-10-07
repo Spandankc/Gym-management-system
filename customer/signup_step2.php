@@ -1,146 +1,81 @@
 <?php
-include "../dbcon.php";
-
-if (!isset($_SESSION['signup_data'])) {
-    header('Location: signup_step1.php');
-    exit();
+require_once __DIR__ . '/../includes/auth.php';
+if (!isset($_SESSION['signup_data']['password_hash'])) {
+    header('Location: signup.php');
+    exit;
 }
-
-$errors = []; // Array to store error messages
-
-if (!empty($_POST)) {
-    $plan = $_POST['plan'] ?? '';
-    $services = $_POST['services'] ?? '';
-    $dor = date("Y-m-d");
-
-    if (empty($plan)) {
-        $errors['plan'] = "Plan is required";
-    }
-    if (empty($services)) {
-        $errors['services'] = "Service is required";
-    }
-
-    if (empty($errors)) {
-        // Retrieve data from session
-        $signup_data = $_SESSION['signup_data'];
-        $fname = $signup_data['fullname'];
-        $username = $signup_data['username'];
-        $password = $signup_data['password'];
-        $contact = $signup_data['contact'];
-        $address = $signup_data['address'];
-        $gender = $signup_data['gender'];
-
-        // Hash the password
-        $hashed_password = md5($password);
-
-        $sql = "INSERT INTO members (fullname,username,password,contact,address,gender,plan,services_id,dor) VALUES
-        ('$fname','$username','$hashed_password','$contact','$address','$gender','$plan','$services','$dor')";
-
-        $result = mysqli_query($conn, $sql);
-        if ($result) {
+require_once __DIR__ . '/../dbcon.php';
+require_once __DIR__ . '/../includes/members.php';
+$errors = [];
+$plan = is_string($_POST['plan'] ?? null) ? $_POST['plan'] : '';
+$selectedService = filter_var($_POST['services'] ?? '', FILTER_VALIDATE_INT) ?: 0;
+$services = $conn->query('SELECT id, service_name, cost FROM services ORDER BY id')->fetch_all(MYSQLI_ASSOC);
+$serviceIds = array_map('intval', array_column($services, 'id'));
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!in_array($plan, ['1', '3', '6', '12'], true)) { $errors['plan'] = 'Please select a valid plan.'; }
+    if (!in_array($selectedService, $serviceIds, true)) { $errors['services'] = 'Please select a valid service.'; }
+    if (!$errors) {
+        $data = $_SESSION['signup_data'];
+        $data['plan'] = $plan;
+        $data['services'] = $selectedService;
+        try {
+            fitness_create_member($conn, $data);
             unset($_SESSION['signup_data']);
-            $_SESSION['success'] = "Registered Successfully";
-            header('Location: index.php');
-            exit();
-        } else {
-            $_SESSION['error'] = "Error Registering User";
-            header('Location: signup.php');
-
+            $_SESSION['success'] = 'Registered Successfully. Please log in to Fitness Hub.';
+            header('Location: login.php');
+            exit;
+        } catch (mysqli_sql_exception $error) {
+            $errors['registration'] = $error->getCode() === 1062
+                ? 'Username already taken. Go back and choose another username.'
+                : 'Unable to register. Please try again.';
+            error_log('Fitness Hub registration: ' . $error->getMessage());
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Sign Up</title>
-    <link rel="stylesheet" href="./css/signup.css">
-    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
-    <style>
-        .error {
-            color: red;
-        }
-
-    </style>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const serviceCards = document.querySelectorAll('.service-card');
-            serviceCards.forEach(card => {
-                card.addEventListener('click', function () {
-                    serviceCards.forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                    document.querySelector('input[name="services"]').value = card.dataset.serviceId;
-                });
-            });
-        });
-    </script>
+    <title>Fitness Hub - Member Sign Up</title>
+    <link rel="stylesheet" href="css/signup.css">
 </head>
-
 <body>
-    <div class="container">
-        <h1>Customer Sign Up</h1>
-        <p><?php
-        if (isset($_SESSION['success'])) {
-            echo $_SESSION['success'];
-            unset($_SESSION['success']);
-        }
-        if (isset($_SESSION['error'])) {
-            echo $_SESSION['error'];
-            unset($_SESSION['error']);
-        }
-        ?></p>
-
-        <div class="form-container">
-            <div class="services-container">
-                <h2>Select Service</h2>
-                <div class="single-service"><?php
-                $service_query = "SELECT * FROM services";
-                $service_result = mysqli_query($conn, $service_query);
-                if ($service_result && mysqli_num_rows($service_result) > 0) {
-                    while ($row = mysqli_fetch_assoc($service_result)) {
-                        $service_id = $row['id'];
-                        $service_name = $row['service_name'];
-                        $price = $row['cost'];
-                        echo "<div class='service-card' data-service-id='$service_id'>
-                                            <h3>$service_name</h3>
-                                            <p>Price: Rs.$price/month</p>
-                                          </div>";
-                    }
-                }
-                ?></div>
+<main class="container">
+    <a class="brand" href="../index.php">Fitness Hub</a>
+    <h1>Member Sign Up</h1>
+    <p class="step">Step 2 of 2: Service and membership</p>
+    <div class="form-container">
+        <?php if (isset($errors['registration'])): ?><p class="error" role="alert"><?= fitness_escape($errors['registration']) ?></p><?php endif; ?>
+        <form action="signup_step2.php" method="post">
+            <fieldset class="services-container">
+                <legend>Select Service</legend>
+                <div class="single-service">
+                    <?php foreach ($services as $service): ?>
+                        <label class="service-card">
+                            <input type="radio" name="services" value="<?= (int) $service['id'] ?>" <?= $selectedService === (int) $service['id'] ? 'checked' : '' ?> required>
+                            <h3><?= fitness_escape($service['service_name']) ?></h3>
+                            <p>Price: Rs.<?= fitness_escape($service['cost']) ?>/month</p>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
+            <?php if (isset($errors['services'])): ?><p class="error" role="alert"><?= fitness_escape($errors['services']) ?></p><?php endif; ?>
+            <div class="input-container plan">
+                <label for="plan">Membership Plan</label>
+                <?php if (isset($errors['plan'])): ?><p class="error" role="alert"><?= fitness_escape($errors['plan']) ?></p><?php endif; ?>
+                <div class="input"><select id="plan" name="plan" required>
+                    <option value="">Select Plan</option>
+                    <?php foreach (['1' => 'One Month', '3' => 'Three Months', '6' => 'Six Months', '12' => 'One Year'] as $value => $label): ?>
+                        <option value="<?= $value ?>" <?= $plan === (string) $value ? 'selected' : '' ?>><?= $label ?></option>
+                    <?php endforeach; ?>
+                </select></div>
             </div>
-            <form action="" method="post">
-                <div class="input-container plan">
-                    <div class="error"><?php echo $errors['plan'] ?? ''; ?></div>
-                    <div class="input">
-                        <i class="fa-solid fa-hourglass"></i>
-                        <select name="plan">
-                            <option selected disabled hidden value="">Select Plan</option>
-                            <option value="1" <?php if (($plan ?? '') == '1')
-                                echo 'selected'; ?>>One Month</option>
-                            <option value="3" <?php if (($plan ?? '') == '3')
-                                echo 'selected'; ?>>Three Months</option>
-                            <option value="6" <?php if (($plan ?? '') == '6')
-                                echo 'selected'; ?>>Six Months</option>
-                            <option value="12" <?php if (($plan ?? '') == '12')
-                                echo 'selected'; ?>>One Year</option>
-                        </select>
-                    </div>
-                    <div class="error"><?php echo $errors['services'] ?? ''; ?></div>
-                    <div class="input">
-                        <input type="hidden" name="services" value="">
-                    </div>
-                </div>
-                <div class="action">
-                    <button type="submit">Submit Details</button>
-                </div>
-            </form>
-        </div>
+            <div class="action next"><a href="signup.php">&larr; Back</a><button type="submit">Submit Details</button></div>
+        </form>
+        <p class="home-link">Already a member? <a href="login.php">Login</a></p>
     </div>
+</main>
 </body>
-
 </html>

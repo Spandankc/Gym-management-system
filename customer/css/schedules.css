@@ -1,0 +1,167 @@
+.fitness-schedules > .container {
+    min-height: 0;
+}
+
+.fitness-schedules .schedule-content {
+    margin: 2rem;
+    padding: 0;
+    width: calc(100% - 4rem);
+    box-sizing: border-box;
+    color: #444;
+}
+
+.schedule-content h1,
+.schedule-content h2 {
+    margin-bottom: 1rem;
+}
+
+.schedule-content .schedule-intro,
+.schedule-content .schedule-timezone {
+    margin-bottom: 1rem;
+}
+
+.schedule-content .message,
+.schedule-content .error {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.schedule-content .message {
+    background: #ddf3de;
+    color: #235c2b;
+}
+
+.schedule-content .error {
+    background: #fbe4e4;
+    color: #942424;
+}
+
+.schedule-content .error ul {
+    margin-left: 1.25rem;
+}
+
+.schedule-form {
+    margin: 1.5rem 0 2.5rem;
+    padding: 1.5rem;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+    background: #f8f8f8;
+}
+
+.schedule-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+}
+
+.schedule-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.schedule-fields .schedule-wide {
+    grid-column: 1 / -1;
+}
+
+.schedule-fields input,
+.schedule-fields select,
+.schedule-fields textarea {
+    width: 100%;
+    padding: 0.65rem;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: white;
+    font: inherit;
+    color: #222;
+}
+
+.schedule-fields textarea {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.schedule-form-actions,
+.schedule-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.schedule-form-actions {
+    margin-top: 1.25rem;
+}
+
+.schedule-content .schedule-button {
+    display: inline-block;
+    border: 0;
+    border-radius: 4px;
+    padding: 0.55rem 1rem;
+    background: #268235;
+    color: white;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.schedule-content .schedule-button:hover {
+    background: #1c6428;
+}
+
+.schedule-content .schedule-delete {
+    background: #a52a2a;
+}
+
+.schedule-content a {
+    color: #254b83;
+}
+
+.schedule-table-wrap {
+    overflow-x: auto;
+}
+
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #f8f8f8;
+}
+
+.schedule-table th,
+.schedule-table td {
+    border: 1px solid #aaa;
+    padding: 0.85rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.schedule-table th {
+    background: #e3e3e8;
+}
+
+.schedule-description {
+    margin-top: 0.35rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.schedule-table time {
+    white-space: nowrap;
+}
+
+@media (max-width: 850px) {
+    .schedule-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .fitness-schedules .schedule-content {
+        margin: 1.25rem 1rem;
+        width: calc(100% - 2rem);
+    }
+
+    .schedule-form {
+        padding: 1rem;
+    }
+}

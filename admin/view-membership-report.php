@@ -1,7 +1,10 @@
-<?php 
-include '../dbcon.php';
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
-if(isset($_GET['id'])) $id=$_GET['id'];
+$id = (int)($_GET['id'] ?? 0);
+if ($id < 1) { http_response_code(404); exit('Member not found.'); }
 $sql="SELECT members.*, services.service_name, services.cost
     FROM members
     LEFT JOIN services ON members.services_id=services.id
@@ -16,9 +19,9 @@ while($row=mysqli_fetch_assoc($result)){
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/view-membership-report.css">
-    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>   
+    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <?php include 'includes/template.php'; ?>
@@ -26,8 +29,8 @@ while($row=mysqli_fetch_assoc($result)){
 <h2>Membership Report</h2>
     <div class="membership">
         <div class="gym-info">
-            <h3>FitManage Hub</h3>
-            <p>Kathmandu, Nepal <br>Tel: 9876543210 <br>support@fitmanage.com</p>
+            <h3>Fitness Hub</h3>
+            <p>Kathmandu, Nepal <br>Tel: 9876543210 <br>support@fitnesshub.com</p>
         </div>
         <div class="details">
             <div class="top">
@@ -44,9 +47,9 @@ while($row=mysqli_fetch_assoc($result)){
                     <tbody>
                         <tr>
                             <td><?=$id?></td>
-                            <td><?=$row['service_name']?></td>
+                            <td><?= fitness_escape($row['service_name']) ?></td>
                             <td><?=$row['plan']?> Month/s</td>
-                            <td><?=$row['address']?></td>
+                            <td><?= fitness_escape($row['address']) ?></td>
                             <td><?=$row['cost']?></td>
                         </tr>
                     </tbody>
@@ -58,7 +61,7 @@ while($row=mysqli_fetch_assoc($result)){
             </div>
         </div>
         <div class="membership-message">
-            <h3>Member Name: <?=$row['fullname']?>,</h3><br>
+            <h3>Member Name: <?= fitness_escape($row['fullname']) ?>,</h3><br>
             <h3>Membership is currently <?=$row['status']?></h3>
             <p class="thanks"><em>Thankyou for choosing our services.<br>  -on behalf of whole team</em></p>
         </div>

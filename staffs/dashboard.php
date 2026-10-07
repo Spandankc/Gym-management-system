@@ -1,5 +1,7 @@
 <?php
-require_once "../dbcon.php";
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('trainer', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 include "includes/authentication.php";
 
 // Fetching User ID
@@ -18,7 +20,7 @@ $genderDataPoints = array();
 
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        $label = $row["gender"] == 'male' ? "Male" : "Female";
+        $label = ucfirst(strtolower($row["gender"]));
         $genderDataPoints[] = array("y" => $row["count"], "label" => $label);
     }
 } else {
@@ -29,7 +31,7 @@ if ($result->num_rows > 0) {
 
 // For services chart
 $service_query = "
-    SELECT services.service_name AS service_name, COUNT(members.id) AS count 
+    SELECT services.service_name AS service_name, COUNT(members.id) AS count
     FROM members
     JOIN services ON members.services_id = services.id
     WHERE members.trainer_id = $uid
@@ -121,7 +123,7 @@ if ($service_result->num_rows > 0) {
                         <div class="announce">
                             <span class="ann"><i class="fa-solid fa-bullhorn"></i></span>
                             <div class="messages">
-                                <h3><?= $row['message'] ?></h3>
+                                <h3><?= fitness_escape($row['message']) ?></h3>
                             </div>
                         </div>
                         <?php

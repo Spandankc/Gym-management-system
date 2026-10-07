@@ -1,6 +1,3 @@
 <?php
-
-if($_SESSION['is_login'] != true || $_SESSION['role'] != 'member'){
-    $_SESSION['error'] = "Must Login to Access";
-    header("Location: index.php");
-}
+require_once __DIR__ . '/../../includes/auth.php';
+fitness_require_role('member', 'login.php');

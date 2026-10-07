@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('trainer', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 include "includes/authentication.php";
 
 $trainer_id = $_SESSION['uid'];
@@ -13,9 +15,9 @@ $sql="SELECT members.*, services.service_name
 
 // Searching Users
 if (!empty($_POST)) {
-    $search = $_POST['search'];
+    $search = mysqli_real_escape_string($conn, trim($_POST['search'] ?? ''));
     if (!empty($search)) {
-        $sql .= " AND (CONCAT(members.fullname, services.service_name) LIKE '%$search%')";
+        $sql .= " AND (CONCAT_WS(' ', members.fullname, services.service_name, members.status) LIKE '%$search%')";
     }
 }
 
@@ -28,7 +30,7 @@ $sn=1;
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub - Trainer</title>
+        <title>Fitness Hub - Trainer</title>
         <link rel="stylesheet" href="css/member-progress-report.css">
         <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
         <script>
@@ -39,7 +41,7 @@ $sn=1;
                 document.getElementById("searchForm").submit();
             }
         }
-    </script> 
+    </script>
     </head>
     <body>
    <?php include 'includes/template.php'; ?>
@@ -67,8 +69,8 @@ $sn=1;
             <?php while($user=mysqli_fetch_assoc($res)){ ?>
             <tr>
                 <td><?=$sn++?></td>
-                <td><?=$user['fullname']?></td>
-                <td><?=$user['service_name']?></td>
+                <td><?= fitness_escape($user['fullname']) ?></td>
+                <td><?= fitness_escape($user['service_name']) ?></td>
                 <td><a href="view-membership-report.php?id=<?=$user['id']?>"><i class="fa-solid fa-file" style="margin-right:0.5rem;"></i>View Membership Report</a></td>
             </tr>
             <?php } ?>

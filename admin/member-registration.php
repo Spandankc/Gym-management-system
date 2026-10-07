@@ -1,6 +1,10 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
+require_once __DIR__ . '/../includes/members.php';
 $errors = []; // Array to store error messages
+$dor = date('Y-m-d');
 
 if (!empty($_POST)) {
     $fname = trim($_POST['fullname'] ?? '');
@@ -11,7 +15,11 @@ if (!empty($_POST)) {
     $gender = $_POST['gender'] ?? '';
     $plan = $_POST['plan'] ?? '';
     $services = $_POST['services'] ?? '';
-    $dor = date("Y-m-d");
+    $dor = $_POST['dor'] ?? date('Y-m-d');
+    $registration_date = DateTimeImmutable::createFromFormat('!Y-m-d', $dor);
+    if (!$registration_date || $registration_date->format('Y-m-d') !== $dor || $dor > date('Y-m-d')) {
+        $errors['dor'] = 'Enter a valid registration date that is not in the future.';
+    }
 
     // Validate all fields are filled
     if (empty($fname)) {
@@ -25,43 +33,52 @@ if (!empty($_POST)) {
     } elseif (strlen($password) <= 8) {
         $errors['password'] = "Password must be greater than 8 characters.";
     }
-    if (empty($contact)) {
-        $errors['contact'] = "Contact Number is required.";
+    if (!preg_match('/^98\d{8}$/', $contact)) {
+        $errors['contact'] = 'Contact Number must be 10 digits long and start with 98.';
     }
     if (empty($address)) {
         $errors['address'] = "Address is required.";
     }
-    if (empty($gender)) {
-        $errors['gender'] = "Gender is required.";
+    if (!in_array($gender, ['male', 'female', 'other', 'others'], true)) {
+        $errors['gender'] = 'Select a valid gender.';
     }
-    if (empty($plan)) {
-        $errors['plan'] = "Plan is required.";
+    if (!in_array((string)$plan, ['1', '3', '6', '12'], true)) {
+        $errors['plan'] = 'Select a valid plan.';
     }
     if (empty($services)) {
         $errors['services'] = "Service is required.";
     }
 
-    // Check if username exists
-    if (empty($errors['username'])) {
-        $username_check_query = "SELECT * FROM members WHERE username='$username'";
-        $username_check_result = mysqli_query($conn, $username_check_query);
-
-        if (mysqli_num_rows($username_check_result) > 0) {
-            $errors['username'] = "Username already taken.";
-        }
+    foreach (['fullname' => $fname, 'username' => $username, 'address' => $address] as $field => $value) {
+        $maximum = ['fullname' => 100, 'username' => 20, 'address' => 255][$field];
+        if (mb_strlen($value) > $maximum) $errors[$field] = 'Use at most ' . $maximum . ' characters.';
     }
-
-    if (empty($errors)) {
-        // Hash the password
-        $hashed_password = md5($password);
-
-        $sql = "INSERT INTO members (fullname, username, password, contact, address, gender, plan, services_id, dor) VALUES ('$fname', '$username', '$hashed_password', '$contact', '$address', '$gender', '$plan', '$services', '$dor')";
-
-        $result = mysqli_query($conn, $sql);
-        if ($result) {
-            $_SESSION['success'] = "Registered Successfully";
-        } else {
-            $_SESSION['error'] = "Error Registering User";
+    if (empty($errors['username'])) {
+        $check = $conn->prepare('SELECT id FROM members WHERE username = ?');
+        $check->bind_param('s', $username);
+        $check->execute();
+        if ($check->get_result()->num_rows > 0) $errors['username'] = 'Username already taken.';
+    }
+    if (empty($errors['services'])) {
+        $service_id = (int)$services;
+        $check = $conn->prepare('SELECT id FROM services WHERE id = ?');
+        $check->bind_param('i', $service_id);
+        $check->execute();
+        if ($check->get_result()->num_rows === 0) $errors['services'] = 'Select a valid service.';
+    }
+    if (!$errors) {
+        try {
+            fitness_create_member($conn, [
+                'fullname' => $fname, 'username' => $username,
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'contact' => $contact, 'address' => $address, 'gender' => $gender,
+                'plan' => (int)$plan, 'services' => (int)$services, 'dor' => $dor
+            ]);
+            $_SESSION['success'] = 'Registered Successfully';
+            header('Location: member-list.php');
+            exit;
+        } catch (mysqli_sql_exception $exception) {
+            $_SESSION['error'] = 'Error Registering User. Check the member information and try again.';
         }
     }
 }
@@ -72,15 +89,15 @@ if (!empty($_POST)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/member-registration.css">
-    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>   
+    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <style>
         .errors { color: red; }
     </style>
 </head>
 <body>
-    
+
     <?php include 'includes/template.php';?>
     <div class="content">
         <h2>New Member Register Form</h2>
@@ -91,17 +108,17 @@ if (!empty($_POST)) {
                 <div class="personal">
                     <h3>Personal-Info</h3>
                     <label for="fullname">Full Name: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['fullname'] ?? ''; ?></span><?php } ?></label>
-                    <input type="text" name="fullname" value="<?php echo htmlspecialchars($fname ?? '', ENT_QUOTES); ?>"><br>
-                    
-                    
+                    <input type="text" name="fullname" maxlength="100" value="<?php echo htmlspecialchars($fname ?? '', ENT_QUOTES); ?>"><br>
+
+
                     <label for="username">Username: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['username'] ?? ''; ?></span><?php } ?></label>
-                    <input type="text" name="username" value="<?php echo htmlspecialchars($username ?? '', ENT_QUOTES); ?>"><br>
-                    
-                    
+                    <input type="text" name="username" maxlength="20" value="<?php echo htmlspecialchars($username ?? '', ENT_QUOTES); ?>"><br>
+
+
                     <label for="password">Password: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['password'] ?? ''; ?></span><?php } ?></label>
                     <input type="password" name="password" value="<?php echo htmlspecialchars($password ?? '', ENT_QUOTES); ?>"><br>
-                   
-                    
+
+
                     <label for="gender">Gender: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['gender'] ?? ''; ?></span><?php } ?></label>
                     <select name="gender">
                         <option value="" disabled hidden selected>Select Gender</option>
@@ -109,8 +126,8 @@ if (!empty($_POST)) {
                         <option value="female" <?php if (($gender ?? '') == 'female') echo 'selected'; ?>>Female</option>
                         <option value="other" <?php if (($gender ?? '') == 'other') echo 'selected'; ?>>Others</option>
                     </select><br>
-                    
-                    <label for="dor">D.O.R: </label>
+
+                    <label for="dor">D.O.R: <span class="errors"><?= $errors['dor'] ?? '' ?></span></label>
                     <input type="date" name="dor" value="<?php echo htmlspecialchars($dor ?? '', ENT_QUOTES); ?>"><br>
                 </div>
                 <div class="other">
@@ -118,11 +135,11 @@ if (!empty($_POST)) {
                         <h3>Contact Details</h3>
                         <label for="contact">Contact Number: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['contact'] ?? ''; ?></span><?php } ?></label>
                         <input type="number" name="contact" value="<?php echo htmlspecialchars($contact ?? '', ENT_QUOTES); ?>"><br>
-                        
-                        
+
+
                         <label for="address">Address: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['address'] ?? ''; ?></span><?php } ?></label>
-                        <input type="text" name="address" value="<?php echo htmlspecialchars($address ?? '', ENT_QUOTES); ?>"><br>
-                    
+                        <input type="text" name="address" maxlength="255" value="<?php echo htmlspecialchars($address ?? '', ENT_QUOTES); ?>"><br>
+
                     </div>
                     <hr>
                     <div class="service">
@@ -142,7 +159,7 @@ if (!empty($_POST)) {
                             }
                             ?>
                         </select><br>
-                        
+
                         <br>
                         <label for="duration">Duration: <?php if(!empty($errors)){?><span class="errors"><?php echo $errors['plan'] ?? ''; ?></span><?php } ?></label>
                         <select name="plan">

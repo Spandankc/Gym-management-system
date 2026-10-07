@@ -1,19 +1,33 @@
 <?php
-require_once "../dbcon.php";
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('trainer', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 include "includes/authentication.php";
 
-if(isset($_GET['id'])){
-    $id=$_GET['id'];
-}
+require_once __DIR__ . '/includes/member-access.php';
+$id = (int)($_GET['id'] ?? 0);
+fitness_require_assigned_member($conn, $id);
 
-if(!empty($_POST)){
-    $link=$_POST['link'];
-    $sql="UPDATE members SET plan_link='$link' WHERE id=$id";
-    $res=mysqli_query($conn,$sql);
-    if($res){
-        $_SESSION['success']="Training Plan Added";
+
+require_once __DIR__ . '/../includes/training-plan.php';
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $link = fitness_training_plan_url($_POST['link'] ?? '');
+    if ($link === null) {
+        $error = 'Enter a valid HTTPS Google Sheets link.';
+    } else {
+        $statement = $conn->prepare('UPDATE members SET plan_link = ? WHERE id = ?');
+        $statement->bind_param('si', $link, $id);
+        $statement->execute();
+        $_SESSION['success'] = 'Training Plan Added';
+        header('Location: member-progress.php');
+        exit;
     }
 }
+$select = $conn->prepare('SELECT plan_link FROM members WHERE id = ?');
+$select->bind_param('i', $id);
+$select->execute();
+$existing = $select->get_result()->fetch_assoc();
 
 ?>
 
@@ -36,9 +50,10 @@ if(!empty($_POST)){
                 <h3><?= $_SESSION['success'];
                 unset($_SESSION['success']) ?></h3>
             </div><?php } ?>
+    <?php if ($error) { ?><p style="color:#EE4266"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php } ?>
     <form action="" method="post" class="plan">
         <label for="link">Add Training Plan Link</label>
-        <input type="text" name="link" placeholder="Add Plan Link">
+        <input type="url" required name="link" placeholder="Add Plan Link" value="<?= htmlspecialchars($_POST['link'] ?? $existing['plan_link'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         <button class="add">Add</button>
     </form>
     <div class="back-div"><a href="member-progress.php" class="back">&#8592; Go Back</a></div>

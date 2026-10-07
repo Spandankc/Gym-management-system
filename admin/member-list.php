@@ -1,51 +1,32 @@
-<?php 
-include "../dbcon.php";
-
-// Display Users
-$sql = "SELECT members.*, services.service_name, services.cost, staffs.fullname AS trainer_name
-        FROM members
-        LEFT JOIN services ON members.services_id = services.id
-        LEFT JOIN staffs ON members.trainer_id = staffs.id";
-$res = mysqli_query($conn, $sql);
-$sn = 1;
-
-// Fetch trainers
-$trainers_sql = "SELECT id, fullname FROM staffs";
-$trainers_res = mysqli_query($conn, $trainers_sql);
-
-// Searching Users 
-if (!empty($_POST)) {
-    $search = $_POST['search'];
-    if (!empty($search)) {
-        $sql = "SELECT members.*, services.service_name, services.cost, staffs.fullname AS trainer_name
-                FROM members
-                LEFT JOIN services ON members.services_id = services.id
-                LEFT JOIN staffs ON members.trainer_id = staffs.id
-                WHERE CONCAT(members.fullname, service_name) LIKE '%$search%'";
-        $res = mysqli_query($conn, $sql);
-    } else {
-        $sql = "SELECT members.*, services.service_name, services.cost, staffs.fullname AS trainer_name
-                FROM members
-                LEFT JOIN services ON members.services_id = services.id
-                LEFT JOIN staffs ON members.trainer_id = staffs.id";
-        $res = mysqli_query($conn, $sql);
-    }
-}
-
-// Handle trainer assignment
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 if (isset($_POST['assign_trainer'])) {
-    $member_id = $_POST['member_id'];
-    $trainer_id = $_POST['trainer_id'];
-    
-    $assign_sql = "UPDATE members SET trainer_id = '$trainer_id' WHERE id = '$member_id'";
-    if (mysqli_query($conn, $assign_sql)) {
-        $_SESSION['success'] = "Trainer assigned successfully!";
-    } else {
-        $_SESSION['error'] = "Failed to assign trainer.";
-    }
+    $member_id = filter_var($_POST['member_id'] ?? null, FILTER_VALIDATE_INT);
+    $trainer_id = filter_var($_POST['trainer_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($member_id && $trainer_id) {
+        $check = $conn->prepare("SELECT id FROM staffs WHERE id = ? AND designation = 'Trainer'");
+        $check->bind_param('i', $trainer_id);
+        $check->execute();
+        if ($check->get_result()->num_rows > 0) {
+            $assign = $conn->prepare('UPDATE members SET trainer_id = ? WHERE id = ?');
+            $assign->bind_param('ii', $trainer_id, $member_id);
+            $assign->execute();
+            $_SESSION['success'] = 'Trainer assigned successfully!';
+        } else $_SESSION['error'] = 'Select a valid trainer.';
+    } else $_SESSION['error'] = 'Select a member and trainer.';
     header('Location: member-list.php');
-    exit();
+    exit;
 }
+$search = trim($_POST['search'] ?? '');
+$pattern = '%' . $search . '%';
+$list = $conn->prepare('SELECT members.*, services.service_name, services.cost, staffs.fullname AS trainer_name FROM members LEFT JOIN services ON members.services_id = services.id LEFT JOIN staffs ON members.trainer_id = staffs.id WHERE CONCAT_WS(" ", members.fullname, services.service_name, members.status) LIKE ?');
+$list->bind_param('s', $pattern);
+$list->execute();
+$res = $list->get_result();
+$sn = 1;
+$trainers_res = $conn->query("SELECT id, fullname FROM staffs WHERE designation = 'Trainer' ORDER BY fullname");
 ?>
 
 <!DOCTYPE html>
@@ -53,7 +34,7 @@ if (isset($_POST['assign_trainer'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/member-list.css">
     <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <script>
@@ -82,10 +63,10 @@ if (isset($_POST['assign_trainer'])) {
         <input type="text" id="searchField" placeholder="Search" name="search" value="<?php echo isset($_POST['search']) ? htmlspecialchars($_POST['search']) : ''; ?>" oninput="submitForm()">
         <button type="submit"><i class="fa-solid fa-search"></i></button>
     </form></div>
-    <?php if (isset($_SESSION['success'])) { ?> 
+    <?php if (isset($_SESSION['success'])) { ?>
         <div class="message"><h3><?=$_SESSION['success'];  unset($_SESSION['success'])?></h3></div>
     <?php } ?>
-    <?php if (isset($_SESSION['error'])) { ?> 
+    <?php if (isset($_SESSION['error'])) { ?>
         <div class="message"><h3><?=$_SESSION['error'];  unset($_SESSION['error'])?></h3></div>
     <?php } ?>
     <table>
@@ -111,12 +92,12 @@ if (isset($_POST['assign_trainer'])) {
             <?php } else { while ($row = mysqli_fetch_assoc($res)) { ?>
             <tr>
                 <td><?=$sn++?></td>
-                <td><?=$row['fullname']?></td>
-                <td><?=$row['gender']?></td>
-                <td><?=$row['contact']?></td>
+                <td><?= fitness_escape($row['fullname']) ?></td>
+                <td><?= fitness_escape($row['gender']) ?></td>
+                <td><?= fitness_escape($row['contact']) ?></td>
                 <td><?=$row['dor']?></td>
-                <td><?=$row['address']?></td>
-                <td><?=$row['service_name']?></td>
+                <td><?= fitness_escape($row['address']) ?></td>
+                <td><?= fitness_escape($row['service_name']) ?></td>
                 <td><?=$row['plan']?> Months</td>
                 <td><?=$row['trainer_name'] ?? 'Not Assigned'?></td>
                 <td>
@@ -124,11 +105,11 @@ if (isset($_POST['assign_trainer'])) {
                         <input type="hidden" name="member_id" value="<?=$row['id']?>">
                         <select name="trainer_id" onchange="this.form.submit()">
                             <option value="">Assign Trainer</option>
-                            <?php 
+                            <?php
                             // Reset trainer result pointer
                             mysqli_data_seek($trainers_res, 0);
                             while ($trainer = mysqli_fetch_assoc($trainers_res)) { ?>
-                                <option value="<?=$trainer['id']?>"><?=$trainer['fullname']?></option>
+                                <option value="<?=$trainer['id']?>" <?= (int)$row['trainer_id'] === (int)$trainer['id'] ? 'selected' : '' ?>><?= fitness_escape($trainer['fullname']) ?></option>
                             <?php } ?>
                         </select>
                         <input type="hidden" name="assign_trainer" value="1">
@@ -140,7 +121,7 @@ if (isset($_POST['assign_trainer'])) {
                 <td>
                     <a href="member-delete.php?id=<?=$row['id']?>" title="Delete Member" class="delete" onclick="confirmDelete(event)"><i class="fa-solid fa-trash"></i></a>
                 </td>
-                
+
             </tr>
             <?php }} ?>
         </tbody>

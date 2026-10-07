@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 //Active Member Count
 $sql = "SELECT * FROM members WHERE status='Active'";
@@ -12,9 +14,7 @@ $result = mysqli_query($conn, $sql);
 $memberCount = mysqli_num_rows($result);
 
 // Total Earning
-$sql = "SELECT SUM(s.cost) AS total_earning 
-        FROM members m 
-        LEFT JOIN services s ON m.services_id = s.id";
+$sql = "SELECT COALESCE(SUM(total_amount), 0) AS total_earning FROM payments";
 $sum = mysqli_query($conn, $sql);
 $row_amount = mysqli_fetch_assoc($sum);
 $total_earning = $row_amount['total_earning'];
@@ -32,7 +32,7 @@ $genderDataPoints = array();
 
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        $label = $row["gender"] == 'male' ? "Male" : "Female";
+        $label = ucfirst(strtolower($row["gender"]));
         $genderDataPoints[] = array("y" => $row["count"], "label" => $label);
     }
 } else {
@@ -43,7 +43,7 @@ if ($result->num_rows > 0) {
 
 // For services chart
 $service_query = "
-    SELECT services.service_name AS service_name, COUNT(members.id) AS count 
+    SELECT services.service_name AS service_name, COUNT(members.id) AS count
     FROM members
     JOIN services ON members.services_id = services.id
     GROUP BY services.service_name
@@ -71,7 +71,7 @@ $statusDataPoints = array();
 
 if ($status_result->num_rows > 0) {
     while ($row = $status_result->fetch_assoc()) {
-        $label = $row["status"] == 'active' ? "Active" : "Inactive";
+        $label = strtolower($row["status"]) === 'active' ? "Active" : "Inactive";
         $statusDataPoints[] = array("y" => $row["count"], "label" => ucfirst($label));
     }
 } else {
@@ -88,7 +88,7 @@ if ($status_result->num_rows > 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <script>

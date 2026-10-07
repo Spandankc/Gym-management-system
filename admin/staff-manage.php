@@ -1,11 +1,13 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 // Fetching Trainers with their Assigned Members Count
-$trainer_sql = "SELECT staffs.*, COUNT(members.id) AS member_count
+$trainer_sql = "SELECT staffs.*, COALESCE(assigned.member_count, 0) AS member_count
                 FROM staffs
-                LEFT JOIN members ON staffs.id = members.trainer_id
-                GROUP BY staffs.id, staffs.fullname";
+                LEFT JOIN (SELECT trainer_id, COUNT(*) AS member_count FROM members GROUP BY trainer_id) assigned
+                    ON staffs.id = assigned.trainer_id";
 $trainer_res = mysqli_query($conn, $trainer_sql);
 ?>
 
@@ -14,9 +16,9 @@ $trainer_res = mysqli_query($conn, $trainer_sql);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/staff-manage.css">
-    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>  
+    <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <script>
          // JavaScript function for delete confirmation
          function confirmDelete(event) {
@@ -24,22 +26,23 @@ $trainer_res = mysqli_query($conn, $trainer_sql);
                 event.preventDefault();
             }
         }
-    </script> 
+    </script>
 </head>
 <body>
-    
+
 <?php include 'includes/template.php'; ?>
 
 <div class="content">
-    <h2><i class="fa-solid fa-list" style="margin-right: 0.5rem"></i>Trainers List</h2>
+    <h2><i class="fa-solid fa-list" style="margin-right: 0.5rem"></i>Staff List</h2>
     <?php if(isset($_SESSION['success'])){ ?> <div class="message"><h3><?=$_SESSION['success'];  unset($_SESSION['success'])?></h3></div><?php } ?>
-    
-    <a href="staff-add.php"><button class="add">Add Trainer</button></a>
+
+    <?php if(isset($_SESSION['error'])) { ?><p style="color:#EE4266"><?= fitness_escape($_SESSION['error']); unset($_SESSION['error']); ?></p><?php } ?>
+    <a href="staff-add.php"><button class="add">Add Staff</button></a>
     <table>
         <thead>
             <tr>
                 <th>SN</th>
-                <th>Trainer Name</th>
+                <th>Staff Name</th>
                 <th>Email</th>
                 <th>Contact</th>
                 <th>Assigned Members</th>
@@ -51,9 +54,9 @@ $trainer_res = mysqli_query($conn, $trainer_sql);
             <?php while($trainer = mysqli_fetch_assoc($trainer_res)) { ?>
             <tr>
                 <td><?=$sn++?></td>
-                <td><?=$trainer['fullname']?></td>
-                <td><?=$trainer['email']?></td>
-                <td><?=$trainer['contact']?></td>
+                <td><?= fitness_escape($trainer['fullname']) ?></td>
+                <td><?= fitness_escape($trainer['email']) ?></td>
+                <td><?= fitness_escape($trainer['contact']) ?></td>
                 <td><?=$trainer['member_count']?></td>
                 <td><a href="trainer-members.php?id=<?=$trainer['id']?>" class="view-members" title="View Members"><i class="fa-solid fa-eye"></i> View Members</a></td>
                 <td><a href="staff-update.php?id=<?=$trainer['id']?>" class="update" title="Edit Staff Information"><i class="fa-solid fa-edit"></i></a></td>

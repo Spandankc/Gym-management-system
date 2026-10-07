@@ -1,4 +1,6 @@
-<?php 
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('member', 'login.php');
 include "../dbcon.php";
 include 'includes/authentication.php';
 
@@ -9,7 +11,7 @@ include 'includes/authentication.php';
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub</title>
+        <title>Fitness Hub</title>
         <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
         <link rel="stylesheet" href="./css/boilerplate.css">
         <link rel="stylesheet" href="css/reminder.css">
@@ -19,12 +21,12 @@ include 'includes/authentication.php';
 
 <div class="content">
     <h2>Reminders</h2>
-    <?php 
+    <?php
         $id=$_SESSION['uid'];
         $sql="SELECT reminder FROM members WHERE id=$id";
         $result=mysqli_query($conn,$sql);
         while($row=mysqli_fetch_assoc($result)){
-            if($row['reminder']=='1'){ 
+            if($row['reminder']=='1'){
             ?>
                 <div class="message">
                     <h3>Alert</h3>
@@ -42,9 +44,9 @@ include 'includes/authentication.php';
                 <?php
             }
         }
-    
+
     ?>
-    
+
 </div>
 
 

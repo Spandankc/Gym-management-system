@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 //Displaying Equipment List
 $sql="SELECT equipment.*, vendors.vendor_name, vendors.address, vendors.contact
@@ -16,9 +18,9 @@ $sn=1;
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub - Admin</title>
+        <title>Fitness Hub - Admin</title>
         <link rel="stylesheet" href="css/equipment-list.css">
-        <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>   
+        <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     </head>
     <body>
     <?php include 'includes/template.php';?>
@@ -45,13 +47,13 @@ $sn=1;
             <?php while($item=mysqli_fetch_assoc($res)) { ?>
             <tr>
                 <td><?=$sn++?></td>
-                <td><?=$item['name']?></td>
-                <td><?=$item['description']?></td>
+                <td><?= fitness_escape($item['name']) ?></td>
+                <td><?= fitness_escape($item['description']) ?></td>
                 <td><?=$item['quantity']?></td>
                 <td><?=$item['amount']?></td>
                 <td><?=$item['total_amount']?></td>
-                <td><?=$item['vendor_name']?></td>
-                <td><?=$item['contact']?></td>
+                <td><?= fitness_escape($item['vendor_name']) ?></td>
+                <td><?= fitness_escape($item['contact']) ?></td>
                 <td><?=$item['date']?></td>
                 <td><a href="equipment-update.php?id=<?=$item['id']?>" class="update" title="Update Equipment Information"><i class="fa-solid fa-edit"></i></a></td>
                 <td><a href="equipment-delete.php?id=<?=$item['id']?>" class="delete" title="Remove Equipment"><i class="fa-solid fa-trash"></i></a></td>

@@ -1,43 +1,36 @@
 <?php
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('member', 'login.php');
 include '../dbcon.php';
 include 'includes/authentication.php';
 
-// Fetching User ID
-$uid = $_SESSION['uid'];
-
-// Fetching To-Do List
-$sql_todo = "SELECT * FROM todo WHERE user_id='$uid'";
-$result_todo = mysqli_query($conn, $sql_todo);
-
-// Deleting Completed Task
+$uid = (int) $_SESSION['uid'];
+// A member can complete only their own task.
 if (isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $sql_complete_task = "DELETE FROM todo WHERE id='$id'";
-    if (mysqli_query($conn, $sql_complete_task)) {
-        header('Location:dashboard.php');
-        $_SESSION['success'] = "Task Completed Successfully";
-        exit();
-    }
+    $id = filter_var($_GET['id'], FILTER_VALIDATE_INT) ?: 0;
+    $complete = $conn->prepare('DELETE FROM todo WHERE id = ? AND user_id = ?');
+    $complete->bind_param('ii', $id, $uid);
+    $complete->execute();
+    if ($complete->affected_rows) { $_SESSION['success'] = 'Task Completed Successfully'; }
+    header('Location: dashboard.php');
+    exit;
 }
-
-// Fetching Training Plan Link
-$plan_sql = "SELECT plan_link FROM members WHERE id=$uid";
-$plan_res = mysqli_query($conn, $plan_sql);
-$plan_link = mysqli_fetch_assoc($plan_res)['plan_link'];
-
-// Fetching Assigned Trainer
-$trainer_sql = "SELECT staffs.fullname AS trainer_name, members.trainer_id
-               FROM members
-               LEFT JOIN staffs ON members.trainer_id = staffs.id
-               WHERE members.id = $uid";
-$trainer_res = mysqli_query($conn, $trainer_sql);
-$trainer_row = mysqli_fetch_assoc($trainer_res);
-
-if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['trainer_id'] !== '0')) {
-    $trainer_name = $trainer_row['trainer_name'];
-} else {
-    $trainer_name = "Trainer Not Assigned Yet";
+$todo = $conn->prepare('SELECT * FROM todo WHERE user_id = ? ORDER BY id');
+$todo->bind_param('i', $uid);
+$todo->execute();
+$result_todo = $todo->get_result();
+$profile = $conn->prepare('SELECT members.plan_link, staffs.fullname AS trainer_name FROM members LEFT JOIN staffs ON members.trainer_id = staffs.id WHERE members.id = ?');
+$profile->bind_param('i', $uid);
+$profile->execute();
+$member = $profile->get_result()->fetch_assoc();
+if (!$member) {
+    unset($_SESSION['is_login'], $_SESSION['role'], $_SESSION['uid'], $_SESSION['user']);
+    $_SESSION['error'] = 'Your member account could not be found. Please log in again.';
+    header('Location: login.php');
+    exit;
 }
+$plan_link = $member['plan_link'];
+$trainer_name = $member['trainer_name'] ?: 'Trainer Not Assigned Yet';
 
 ?>
 
@@ -47,7 +40,7 @@ if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['traine
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub</title>
+    <title>Fitness Hub</title>
     <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="./css/boilerplate.css">
     <link rel="stylesheet" href="css/dashboard.css">
@@ -56,6 +49,7 @@ if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['traine
 <body>
     <?php include 'includes/boilerplate.php'; ?>
     <div class="content">
+        <?php if (isset($_SESSION['success'])): ?><p role="status"><?=fitness_escape($_SESSION['success'])?></p><?php unset($_SESSION['success']); endif; ?>
         <div class="top">
             <div class="to-do">
                 <h2>My To-Do-List</h2>
@@ -71,8 +65,8 @@ if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['traine
                     <tbody>
                         <?php foreach ($result_todo as $task) { ?>
                             <tr>
-                                <td><?= $task['task_desc'] ?></td>
-                                <td><?= $task['task_status'] ?></td>
+                                <td><?= fitness_escape($task['task_desc']) ?></td>
+                                <td><?= fitness_escape($task['task_status']) ?></td>
                                 <td>
                                     <a href="update-todo.php?id=<?= $task['id'] ?>" class="update" title="Update"><span><i
                                                 class="fa-solid fa-pen-to-square"></i></span></a>
@@ -97,7 +91,7 @@ if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['traine
                         <div class="announce">
                             <span class="ann"><i class="fa-solid fa-bullhorn"></i></span>
                             <div class="message">
-                                <h3><?= $row['message'] ?></h3>
+                                <h3><?= fitness_escape($row['message']) ?></h3>
                             </div>
                         </div>
                         <?php
@@ -107,18 +101,18 @@ if ($trainer_row && ($trainer_row['trainer_id'] !== null && $trainer_row['traine
             </div>
         </div>
         <div class="trainer-info">
-            <h2>Assigned Trainer: <?= $trainer_name ?></h2>
+            <h2>Assigned Trainer: <?= fitness_escape($trainer_name) ?></h2>
         </div>
         <div class="bottom">
             <h1>Workout Routine</h1>
             <?php if ($plan_link) { ?>
-                <iframe class="plan" src="<?= $plan_link ?>" width="100%" height="600px"></iframe>
-                <div class="sheet"><a href="<?= $plan_link ?>" target="_blank">&#8594;Open in Google Sheets</a></div>
+                <iframe class="plan" src="<?= fitness_escape($plan_link) ?>" width="100%" height="600px"></iframe>
+                <div class="sheet"><a href="<?= fitness_escape($plan_link) ?>" target="_blank">&#8594;Open in Google Sheets</a></div>
             <?php } else { ?>
                 <p>Training Plan is not added yet.</p>
             <?php } ?>
         </div>
-        
+
     </div>
 
     <?php include 'includes/footer.php' ?>

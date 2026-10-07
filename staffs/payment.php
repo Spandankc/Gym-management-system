@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('trainer', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 include "includes/authentication.php";
 
 $trainer_id = $_SESSION['uid'];
@@ -13,7 +15,7 @@ $sql="SELECT members.*, services.service_name , services.cost
 
 //Search Users
 if (!empty($_POST)) {
-    $search = $_POST['search'];
+    $search = mysqli_real_escape_string($conn, trim($_POST['search'] ?? ''));
     if (!empty($search)) {
         $sql .= " AND (CONCAT(members.fullname, services.service_name, status) LIKE '%$search%')";
     }
@@ -55,6 +57,7 @@ $sn=1;
             </form>
         </div>
         <?php if(isset($_SESSION['success'])){ ?> <div class="message"><h3><?=$_SESSION['success'];  unset($_SESSION['success'])?></h3></div><?php } ?>
+        <?php if (isset($_SESSION['error'])) { ?><p style="color:#EE4266"><?= fitness_escape($_SESSION['error']); unset($_SESSION['error']); ?></p><?php } ?>
         <div class="pay-table">
             <table>
                 <thead>
@@ -74,12 +77,12 @@ $sn=1;
                     <?php while($user=mysqli_fetch_assoc($res)) { ?>
                     <tr>
                         <td><?=$sn++?></td>
-                        <td><?=$user['fullname']?></td>
+                        <td><?= fitness_escape($user['fullname']) ?></td>
                         <td><?=$user['pay_date']?></td>
                         <td><?=$user['cost']?></td>
-                        <td><?=$user['service_name']?></td>
+                        <td><?= fitness_escape($user['service_name']) ?></td>
                         <td><?=$user['plan']?> Month/s</td>
-                        <td><?php if( $user['status'] == 'Active' || $user['status']=='active' ){ echo '<i class="fas fa-circle" style="color:green;"></i> Active';} else { echo '<i class="fas fa-circle" style="color:red;"></i> Expired';}?></td>                
+                        <td><?php if( $user['status'] == 'Active' || $user['status']=='active' ){ echo '<i class="fas fa-circle" style="color:green;"></i> Active';} else { echo '<i class="fas fa-circle" style="color:red;"></i> Expired';}?></td>
                         <td>
                             <a href="user-payment.php?id=<?php echo $user['id']?>"><button class="pay">Make Payment</button></a>
                         </td>

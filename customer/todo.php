@@ -1,20 +1,24 @@
 <?php
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('member', 'login.php');
 include '../dbcon.php';
 include 'includes/authentication.php';
 
-if(!empty($_POST)){
-    $task=$_POST['task'];
-    $status=$_POST['status'];
-    $user_id=$_POST['id'];
-    $sql="INSERT INTO todo (task_status,task_desc,user_id)VALUES('$status','$task','$user_id')";
-    $result=mysqli_query($conn,$sql);
-    if($result){
-        $_SESSION['success']="Task Added Successfully";
-    }else{
-        $_SESSOIN['error']="Error Adding Task";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $task = trim(is_string($_POST['task'] ?? null) ? $_POST['task'] : '');
+    $status = is_string($_POST['status'] ?? null) ? $_POST['status'] : '';
+    if ($task === '' || strlen($task) > 30 || !in_array($status, ['In Progress', 'Pending'], true)) {
+        $_SESSION['error'] = 'Enter a task of at most 30 characters and choose a valid status.';
+    } else {
+        $user_id = (int) $_SESSION['uid'];
+        $statement = $conn->prepare('INSERT INTO todo (task_status, task_desc, user_id) VALUES (?, ?, ?)');
+        $statement->bind_param('ssi', $status, $task, $user_id);
+        $statement->execute();
+        $_SESSION['success'] = 'Task Added Successfully';
+        header('Location: dashboard.php');
+        exit;
     }
 }
-
 
 ?>
 
@@ -23,7 +27,7 @@ if(!empty($_POST)){
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub</title>
+        <title>Fitness Hub</title>
         <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
         <link rel="stylesheet" href="./css/boilerplate.css">
         <link rel="stylesheet" href="css/todo.css">
@@ -37,7 +41,7 @@ if(!empty($_POST)){
     <form action="" method="post">
         <div class="input">
             <label for="task">Please Enter your Task: </label>
-            <input type="text" name="task">
+            <input type="text" name="task" maxlength="30" required>
         </div>
         <div class="input">
             <label for="task">Please Select a Status: </label>
@@ -48,9 +52,10 @@ if(!empty($_POST)){
         </div>
         <input type="hidden" name="id" value="<?=$_SESSION['uid']?>">
         <button>Add To List</button>
-        <?php 
+        <?php if (isset($_SESSION['error'])) { echo fitness_escape($_SESSION['error']); unset($_SESSION['error']); } ?>
+        <?php
             if(isset($_SESSION['success'])){
-                echo $_SESSION['success'];
+                echo fitness_escape($_SESSION['success']);
                 unset($_SESSION['success']);
             }
         ?>

@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `admin` (
   `id` int(11) NOT NULL,
   `username` varchar(50) NOT NULL,
-  `password` varchar(50) NOT NULL,
+  `password` varchar(100) NOT NULL,
   `name` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
@@ -93,19 +93,20 @@ INSERT INTO `equipment` (`id`, `name`, `amount`, `quantity`, `total_amount`, `de
 
 CREATE TABLE `members` (
   `id` int(11) NOT NULL,
-  `fullname` varchar(20) NOT NULL,
+  `fullname` varchar(100) NOT NULL,
   `username` varchar(20) NOT NULL,
   `password` varchar(100) NOT NULL,
   `gender` varchar(20) NOT NULL,
   `dor` date NOT NULL,
   `services_id` int(11) NOT NULL,
   `plan` varchar(100) NOT NULL,
-  `address` varchar(20) NOT NULL,
+  `address` varchar(255) NOT NULL,
   `contact` varchar(10) NOT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'Active',
   `reminder` int(11) NOT NULL DEFAULT 0,
-  `pay_date` date NOT NULL,
-  `plan_link` varchar(255) NOT NULL
+  `pay_date` date DEFAULT NULL,
+  `plan_link` varchar(255) NOT NULL DEFAULT '',
+  `trainer_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
@@ -127,67 +128,6 @@ DELIMITER $$
 CREATE TRIGGER `InsertProgress` AFTER INSERT ON `members` FOR EACH ROW INSERT INTO progress VALUES(null,0,0,'','',NEW.id)
 $$
 DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `update_existing_member_status` BEFORE UPDATE ON `members` FOR EACH ROW BEGIN
-    IF NEW.status = 'active' THEN
-        IF NEW.plan = '1' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '6' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '12' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN
-            SET NEW.status = 'expired';
-        END IF;
-    END IF;
-END
-$$
-DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `update_member_status` BEFORE INSERT ON `members` FOR EACH ROW BEGIN
-    IF NEW.status = 'active' THEN
-        IF NEW.plan = '1' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '6' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '12' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN
-            SET NEW.status = 'expired';
-        END IF;
-    END IF;
-END
-$$
-DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `update_status` BEFORE UPDATE ON `members` FOR EACH ROW BEGIN
-    IF NEW.status = 'active' THEN
-        IF NEW.plan = '1' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '6' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN
-            SET NEW.status = 'expired';
-        ELSEIF NEW.plan = '12' AND NEW.dor < DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN
-            SET NEW.status = 'expired';
-        END IF;
-    ELSEIF NEW.status = 'expired' THEN
-        IF NEW.plan = '1' AND NEW.dor >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN
-            SET NEW.status = 'active';
-        ELSEIF NEW.plan = '6' AND NEW.dor >= DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN
-            SET NEW.status = 'active';
-        ELSEIF NEW.plan = '12' AND NEW.dor >= DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN
-            SET NEW.status = 'active';
-        END IF;
-    END IF;
-END
-$$
-DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `update_status_before_reminder_update` BEFORE UPDATE ON `members` FOR EACH ROW BEGIN
-    IF NEW.reminder = 0 THEN
-        SET NEW.status = 'active';
-    ELSE
-        SET NEW.status = 'expired';
-    END IF;
-END
-$$
-DELIMITER ;
-
 -- --------------------------------------------------------
 
 --
@@ -457,3 +397,44 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- Class schedules from the documented admin/trainer/member requirements.
+CREATE TABLE IF NOT EXISTS class_schedules (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(100) NOT NULL,
+  trainer_id INT DEFAULT NULL,
+  starts_at DATETIME NOT NULL,
+  duration_minutes INT NOT NULL DEFAULT 60,
+  location VARCHAR(100) NOT NULL,
+  description TEXT NOT NULL,
+  KEY schedule_date (starts_at),
+  KEY schedule_trainer (trainer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Keep each recorded cash payment and renewal for receipts and earnings.
+CREATE TABLE IF NOT EXISTS payments (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  member_id INT NOT NULL,
+  monthly_amount DECIMAL(12,2) NOT NULL,
+  months INT NOT NULL,
+  total_amount DECIMAL(12,2) NOT NULL,
+  paid_on DATE NOT NULL,
+  recorded_by INT NULL,
+  recorded_role VARCHAR(20) NOT NULL,
+  KEY member_payments (member_id, paid_on),
+  CONSTRAINT payment_member FOREIGN KEY (member_id) REFERENCES members (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Requested local demo credentials for both roles: @spandan / 123.
+-- Widen the legacy admin column to store a modern password hash.
+ALTER TABLE admin MODIFY password VARCHAR(100) NOT NULL;
+START TRANSACTION;
+INSERT INTO admin (username, password, name)
+SELECT '@spandan', '$2y$10$5ysiuVZk5Iot7dsglArfru7LAO14PfLjv9E.su1.spMvLMgyCoOHu', 'Spandan'
+WHERE NOT EXISTS (SELECT 1 FROM admin WHERE username = '@spandan');
+UPDATE admin SET password = '$2y$10$5ysiuVZk5Iot7dsglArfru7LAO14PfLjv9E.su1.spMvLMgyCoOHu' WHERE username = '@spandan';
+INSERT INTO staffs (fullname, username, password, gender, email, contact, address, designation)
+SELECT 'Spandan', '@spandan', '$2y$10$5ysiuVZk5Iot7dsglArfru7LAO14PfLjv9E.su1.spMvLMgyCoOHu', 'Others', 'spandan.demo@example.invalid', '', '', 'Trainer'
+WHERE NOT EXISTS (SELECT 1 FROM staffs WHERE username = '@spandan');
+UPDATE staffs SET password = '$2y$10$5ysiuVZk5Iot7dsglArfru7LAO14PfLjv9E.su1.spMvLMgyCoOHu', designation = 'Trainer' WHERE username = '@spandan';
+COMMIT;

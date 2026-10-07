@@ -1,20 +1,22 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 //Displaying Status
-$sql="SELECT members.*, services.service_name 
+$sql="SELECT members.*, services.service_name
     FROM members
     LEFT JOIN services on members.services_id=services.id";
 $res=mysqli_query($conn,$sql);
 $sn=1;
 
-//Searching Users 
+//Searching Users
 if(!empty($_POST)){
-    $search=$_POST['search'];
+    $search=mysqli_real_escape_string($conn, trim($_POST['search'] ?? ''));
     if(!empty($search)){
         $sql="SELECT members.*, services.service_name, services.cost
         FROM members
-        LEFT JOIN services on members.services_id=services.id WHERE CONCAT(fullname,status,service_name) LIKE '%$search%'";
+        LEFT JOIN services on members.services_id=services.id WHERE CONCAT_WS(' ', members.fullname, services.service_name, members.status) LIKE '%$search%'";
         $res=mysqli_query($conn,$sql);
     }else{
         $sql="SELECT members.*, services.service_name, services.cost
@@ -32,7 +34,7 @@ if(!empty($_POST)){
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub - Admin</title>
+        <title>Fitness Hub - Admin</title>
         <link rel="stylesheet" href="css/member-status.css">
         <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
         <script>
@@ -43,10 +45,10 @@ if(!empty($_POST)){
             document.getElementById("searchForm").submit();
         }
     }
-</script>  
+</script>
     </head>
     <body>
-        
+
         <?php include 'includes/template.php';?>
 <div class="content">
     <div class="heading">
@@ -77,9 +79,9 @@ if(!empty($_POST)){
        <?php } else { while($user=mysqli_fetch_assoc($res)){ ?>
                 <tr>
                     <td><?=$sn++?></td>
-                    <td><?=$user['fullname']?></td>
-                    <td><?=$user['contact']?></td>
-                    <td><?=$user['service_name']?></td>
+                    <td><?= fitness_escape($user['fullname']) ?></td>
+                    <td><?= fitness_escape($user['contact']) ?></td>
+                    <td><?= fitness_escape($user['service_name']) ?></td>
                     <td><?=$user['plan']?> Month/s</td>
                     <td><?=$user['dor']?></td>
                     <td><?php if( $user['status'] == 'Active' || $user['status']=='active' ){ echo '<i class="fas fa-circle" style="color:green;"></i> Active';} else { echo '<i class="fas fa-circle" style="color:red;"></i> Expired';}?></td>

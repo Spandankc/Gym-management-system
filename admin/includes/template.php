@@ -1,15 +1,11 @@
 <?php
-
-if($_SESSION['is_login']!=true || $_SESSION['role']!='admin'){
-    $_SESSION['error']="Must Login to Access";
-    header('Location:index.php');
-}
-
+require_once __DIR__ . '/../../includes/auth.php';
+fitness_require_role('admin', 'index.php');
 ?>
-<link rel="stylesheet" href="css/template.css">   
+<link rel="stylesheet" href="css/template.css">
 <div class="container">
         <div class="sidebar">
-            <div class="logo"><img src="../images/logo.png" alt=""></div>
+            <div class="logo"><a href="dashboard.php" aria-label="Go to admin dashboard"><img src="../images/logo1.png" alt="Fitness Hub"></a></div>
             <div class="options">
                 <ul>
                     <li><a href="dashboard.php" class="pages"><span class="icon"><i class="fa-solid fa-house"></i></span>Dashboard</a></li>
@@ -27,6 +23,7 @@ if($_SESSION['is_login']!=true || $_SESSION['role']!='admin'){
                         </ul>
                     </li>
                     <li><a href="member-progress.php" class="pages"><span class="icon"><i class="fa-solid fa-chart-simple"></i></span>Member's Progress</a></li>
+                    <li><a href="schedules.php" class="pages"><span class="icon"><i class="fa-solid fa-calendar"></i></span>Class Schedules</a></li>
                     <li><a href="payment.php" class="pages"><span class="icon"><i class="fa-solid fa-money-check-dollar"></i></span>Payments</a></li>
                     <li><a href="announcement-add.php" class="pages"><span class="icon"><i class="fa-solid fa-bullhorn"></i></span>Announcement</a></li>
                     <li><a href="staff-manage.php" class="pages"><span class="icon"><i class="fa-solid fa-briefcase"></i></span>Staff Management</a></li>
@@ -46,6 +43,4 @@ if($_SESSION['is_login']!=true || $_SESSION['role']!='admin'){
                     <li><a href="logout.php"><span class="icon"><i class="fa-solid fa-right-from-bracket"></i></span>Logout</a></li>
                 </ul>
             </div>
-            
-                
-            
+

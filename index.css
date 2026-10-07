@@ -58,8 +58,8 @@ nav ul ul{
     display: none;
 }
 
-nav ul .dropdown:hover ul{
-    display: initial;
+nav ul .dropdown.open > ul{
+    display: block;
 }
 
 /* HOME */
@@ -312,13 +312,40 @@ form button:hover{
 }
 
 /* Animation styles */
+.contact-status {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    max-width: 100%;
+}
+
+.contact-success { background: #ddf3de; color: #235c2b; }
+.contact-error { background: #fbe4e4; color: #942424; }
+
 .slide-in-left {
-    opacity: 0;
-    transform: translateX(-100%);
+    opacity: 1;
+    transform: translateX(0);
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
 }
 
 .slide-in-left.show {
     opacity: 1;
     transform: translateX(0);
+}
+
+nav { z-index: 10; }
+nav .dropdown { position: relative; }
+nav .dropdown ul { right: 0; min-width: 210px; background: #35374b; }
+nav .dropdown ul a { font-size: 1.1rem; height: auto; padding: 14px 24px; }
+nav a:focus-visible, nav button:focus-visible { outline: 2px solid white; outline-offset: -4px; }
+@media (max-width: 700px) {
+    nav img { height: 44px; margin-left: 8px; }
+    nav ul li a { padding: 10px; font-size: 1rem; }
+    .content { width: 90%; }
+    .content h1 { font-size: 3.8rem; }
+    .services-content { flex-wrap: wrap; }
+    .service-card { width: 100%; }
+    .contact-info { flex-direction: column; width: 100%; }
+    .contacts, .contact-form { width: 100%; }
+    h1 { font-size: 3rem; }
 }

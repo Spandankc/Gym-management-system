@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 //Displaying Announcements
 $sql="SELECT * FROM announcements";
@@ -13,9 +15,9 @@ $sn=1;
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FitManage Hub - Admin</title>
+        <title>Fitness Hub - Admin</title>
         <link rel="stylesheet" href="css/announcement-manage.css">
-        <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>   
+        <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     </head>
     <body>
     <?php include 'includes/template.php';?>

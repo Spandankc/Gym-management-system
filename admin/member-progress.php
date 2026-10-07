@@ -1,5 +1,7 @@
 <?php
-include '../dbcon.php';
+require_once __DIR__ . '/../includes/auth.php';
+fitness_require_role('admin', 'index.php');
+require_once __DIR__ . '/../dbcon.php';
 
 //Displaying Members Progress(initial weight, current weight, progress)
 $sql = "SELECT members.*,services.service_name, progress.ini_weight, progress.curr_weight, progress.ini_bodytype, progress.curr_bodytype
@@ -11,14 +13,14 @@ $sql = "SELECT members.*,services.service_name, progress.ini_weight, progress.cu
 $res = mysqli_query($conn, $sql);
 $sn = 1;
 
-//Searching Users 
+//Searching Users
 if (!empty($_POST)) {
-    $search = $_POST['search'];
+    $search = mysqli_real_escape_string($conn, trim($_POST['search'] ?? ''));
     if (!empty($search)) {
         $sql = "SELECT members.*,services.service_name, progress.ini_weight, progress.curr_weight, progress.ini_bodytype, progress.curr_bodytype
         FROM members
         LEFT JOIN progress ON members.id = progress.member_id
-        LEFT JOIN services ON members.services_id = services.id WHERE CONCAT(fullname,service_name) LIKE '%$search%'";
+        LEFT JOIN services ON members.services_id = services.id WHERE CONCAT_WS(' ', members.fullname, services.service_name, members.status) LIKE '%$search%'";
         $res = mysqli_query($conn, $sql);
     } else {
         $sql = "SELECT members.*,services.service_name, progress.ini_weight, progress.curr_weight, progress.ini_bodytype, progress.curr_bodytype
@@ -37,7 +39,7 @@ if (!empty($_POST)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitManage Hub - Admin</title>
+    <title>Fitness Hub - Admin</title>
     <link rel="stylesheet" href="css/member-progress.css">
     <script src="https://kit.fontawesome.com/426c1a4028.js" crossorigin="anonymous"></script>
     <script>
@@ -79,16 +81,17 @@ if (!empty($_POST)) {
                     <th>Service</th>
                     <th>Progress</th>
                     <th>Action</th>
+                    <th>Training Plan</th>
                 </tr>
             </thead>
             <tbody>
                 <?php while ($row = mysqli_fetch_assoc($res)) { ?>
                     <tr>
                         <td><?= $sn++ ?></td>
-                        <td><?= $row['fullname'] ?></td>
+                        <td><?= fitness_escape($row['fullname']) ?></td>
                         <td><?= $row['ini_weight'] ?></td>
                         <td><?= $row['curr_weight'] ?></td>
-                        <td><?= $row['service_name'] ?></td>
+                        <td><?= fitness_escape($row['service_name']) ?></td>
                         <td><?php
                         if ($row['ini_weight'] < $row['curr_weight']) {
                             $diff = $row['curr_weight'] - $row['ini_weight'];
@@ -102,6 +105,7 @@ if (!empty($_POST)) {
                         ?></td>
                         <td><a href="progress-update.php?id=<?= $row['id'] ?>"><button class="update">Update</button></a>
                         </td>
+                        <td><a href="upload_plan.php?id=<?= $row['id'] ?>"><button class="update">Upload Plan</button></a></td>
                     </tr>
                 <?php } ?>
             </tbody>
